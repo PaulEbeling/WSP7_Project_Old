@@ -1,9 +1,8 @@
 import numpy as np
-from PySide6.QtCore import QThread, QTimer, Signal
+from PySide6.QtCore import QThread, QTimer
 from PySide6.QtWidgets import QPushButton, QVBoxLayout, QHBoxLayout, QPlainTextEdit, QWidget
 import pyqtgraph as pg
 from Performance_Test_Pyserial.Input import adxl_uart_data_message
-import time
 
 OVERRUN_DETECTION_TOLERANCE = 10000000
 ACC_PLOTTEN = 0
