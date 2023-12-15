@@ -116,7 +116,7 @@ standard_base_settings = [
 imu_acc_sensitivity = 8196.72
 imu_gyr_sensitivity = 114.2857
 imu_mag_sensitivity = 6842.0
-acc_sensitivity = 128000.0
+acc_sensitivity = 51200.0
 #endregion
 
 #region dataclass
@@ -220,7 +220,7 @@ class Decoder(QObject):
             new_data.timestamp = self.decode_uint32(input_message, ADXL_NUM_BYTES, 0)
 
             x_acc = self.decode_int16(input_message, ADXL_NUM_BYTES, 4)
-            new_data.x_acc = float(x_acc) / imu_acc_sensitivity * (-1.0)
+            new_data.x_acc = (float(x_acc) / imu_acc_sensitivity) * (-1.0)
             y_acc = self.decode_int16(input_message, ADXL_NUM_BYTES, 6)
             new_data.y_acc = float(y_acc) / imu_acc_sensitivity * (-1.0)
             z_acc = self.decode_int16(input_message, ADXL_NUM_BYTES, 8)
@@ -233,20 +233,24 @@ class Decoder(QObject):
             z_gyr = self.decode_int16(input_message, ADXL_NUM_BYTES, 14)
             new_data.z_gyr = float(z_gyr) / imu_gyr_sensitivity * (-1.0)
 
-            new_data.x_mag = self.decode_int16(input_message, ADXL_NUM_BYTES, 16)
-            new_data.y_mag = self.decode_int16(input_message, ADXL_NUM_BYTES, 18)
-            new_data.z_mag = self.decode_int16(input_message, ADXL_NUM_BYTES, 20)
+            x_mag = self.decode_int16(input_message, ADXL_NUM_BYTES, 16)
+            new_data.x_mag = float(x_mag) / imu_mag_sensitivity
+            y_mag = self.decode_int16(input_message, ADXL_NUM_BYTES, 18)
+            new_data.y_mag = float(y_mag) / imu_mag_sensitivity
+            z_mag = self.decode_int16(input_message, ADXL_NUM_BYTES, 20)
+            new_data.z_mag = float(z_mag) / imu_mag_sensitivity * (-1.0)
 
-            new_data.temperature = self.decode_int16(input_message, ADXL_NUM_BYTES, 22)
+            temperature = self.decode_int16(input_message, ADXL_NUM_BYTES, 22)
+            new_data.temperature = ((float(temperature) - 1852.0) / -9.05) + 25.0
 
-            new_data.fuel = input_message[ADXL_NUM_BYTES - 3]
+            new_data.fuel = (float(input_message[ADXL_NUM_BYTES - 3])/10.0)
             new_data.rssi = input_message[ADXL_NUM_BYTES - 2]
             new_data.id_byte = input_message[ADXL_NUM_BYTES - 1]
 
-            adxl_data = input_message[24: 250]
+            adxl_data = input_message[24: 249]
             new_data.mems_x_acc, new_data.mems_y_acc, new_data.mems_z_acc = self.decode_mems_sensor_data(adxl_data)
 
-            print("MEMS X ACC: " + str(new_data.mems_x_acc) + " X ACC: " + str(new_data.x_acc))
+            #print("MEMS X ACC: " + str(new_data.mems_x_acc) + " X ACC: " + str(new_data.x_acc))
             #print(new_data.mems_y_acc)
             #print(new_data.mems_z_acc)
             # endregion
@@ -272,11 +276,11 @@ class Decoder(QObject):
         z_acc = []
         for i in range(25):
             tmp = int.from_bytes(input[(i * 9) + 0:(i * 9) + 2], 'little')
-            x_acc.append( float(tmp) / acc_sensitivity * (-1.0))
+            x_acc.append(float(tmp) / acc_sensitivity)
             tmp = int.from_bytes(input[(i * 9) + 3:(i * 9) + 5], 'little')
-            y_acc.append(float(tmp) / acc_sensitivity * (-1.0))
+            y_acc.append(float(tmp) / acc_sensitivity)
             tmp = int.from_bytes(input[(i * 9) + 6:(i * 9) + 8], 'little')
-            z_acc.append(float(tmp) / acc_sensitivity * (-1.0))
+            z_acc.append(float(tmp) / acc_sensitivity)
 
         return x_acc, y_acc, z_acc
 

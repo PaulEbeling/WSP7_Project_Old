@@ -12,21 +12,6 @@ MAG_PLOTTEN = 2
 MEMS_ACC_PLOTTEN = 3
 
 
-"""""
-import numpy as np
-
-liste = [0,5,10,15,20,25,30]
-liste2 = []
-
-for i in range(len(liste) - 1):
-    liste2.extend(np.linspace(liste[i], liste[i + 1],6))
-    if i != (len(liste) - 2):
-        del liste2[-1]
-    
-print(liste2)
-"""""
-
-
 class Graph(QWidget):
     def __init__(self, graph_type):
         super(Graph, self).__init__()
@@ -258,15 +243,11 @@ class Graph(QWidget):
                     self.timestamps.extend(interpolierte_timestamps)
 
             for data in adxl_data_list_tmp[start:adxl_data_list_tmp_len]:
-                for i in range(25):
-                    try:
-                        self.list_of_y_values[0].append(data.mems_x_acc[i])
-                    except IndexError:
-                        print("Mems X ACC values: " + str(len(data.mems_x_acc)) + " i: " + str(i))
-                    self.list_of_y_values[1].append(data.mems_y_acc[i])
-                    self.list_of_y_values[2].append(data.mems_z_acc[i])
+                self.list_of_y_values[0].extend(data.mems_x_acc[0:25])
+                self.list_of_y_values[1].extend(data.mems_y_acc[0:25])
+                self.list_of_y_values[2].extend(data.mems_z_acc[0:25])
 
-            #print(len(self.list_of_y_values[0]))
+            print(self.list_of_y_values[0])
             #print(len(self.timestamps))
             # print(self.timestamps)
 
