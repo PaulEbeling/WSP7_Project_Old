@@ -4,6 +4,7 @@ from PySide6.QtSerialPort import QSerialPort
 from PySide6.QtCore import QIODevice, QObject, Signal
 from queue import Queue
 from time import sleep
+from serial import Serial, STOPBITS_ONE, PARITY_NONE, EIGHTBITS
 from dataclasses import dataclass
 
 #region variablen
@@ -112,9 +113,11 @@ standard_base_settings = [
     np.uint8(6),  # id_byte
 ]
 
-imu_acc_sensitivity = 16393.44
+#imu_acc_sensitivity = 16393.44
+imu_acc_sensitivity = 8196.72
 imu_gyr_sensitivity = 114.2857
 imu_mag_sensitivity = 6842.0
+acc_sensitivity = 51200.0
 #endregion
 
 #region dataclass
@@ -128,23 +131,27 @@ class adxl_uart_info_message:
 
 @dataclass
 class adxl_uart_data_message:
-    x_gyr: np.int16
-    y_gyr: np.int16
-    z_gyr: np.int16
-
-    x_mag: np.int16
-    y_mag: np.int16
-    z_mag: np.int16
-
     temperature: np.int16
-
-    adxl_data = [np.uint8] * 225
 
     fuel: np.uint8
     rssi: np.uint8
     id_byte: np.uint8
 
-    x_acc: np.uint16 =  np.uint16(0)
+    timestamp: np.uint32 = np.uint32(0)
+
+    mems_x_acc = [np.uint16(0)] * 25
+    mems_y_acc = [np.uint16(0)] * 25
+    mems_z_acc = [np.uint16(0)] * 25
+
+    x_gyr: np.int16 = np.uint16(0)
+    y_gyr: np.int16 = np.uint16(0)
+    z_gyr: np.int16 = np.uint16(0)
+
+    x_mag: np.int16 = np.uint16(0)
+    y_mag: np.int16 = np.uint16(0)
+    z_mag: np.int16 = np.uint16(0)
+
+    x_acc: np.uint16 = np.uint16(0)
     y_acc: np.int16 = np.uint16(0)
     z_acc: np.int16 = np.uint16(0)
 
@@ -182,7 +189,7 @@ class Decoder(QObject):
         return data_convert
 
     def decode_message(self, length, enc_message):
-        dec_message = cobs.decode(b''.join(enc_message))
+        dec_message = cobs.decode(bytearray(enc_message))
         #byte_list_to_int_array = [int.from_bytes(element, "big") for element in enc_message]
         #dec_message = cobs.decode(bytearray(byte_list_to_int_array))
 
@@ -216,29 +223,35 @@ class Decoder(QObject):
             new_data.timestamp = self.decode_uint32(input_message, ADXL_NUM_BYTES, 0)
 
             x_acc = self.decode_int16(input_message, ADXL_NUM_BYTES, 4)
-            new_data.x_acc = float(x_acc)/imu_acc_sensitivity * (-1.0)
+            new_data.x_acc = (float(x_acc) / imu_acc_sensitivity) * (-1.0)
             y_acc = self.decode_int16(input_message, ADXL_NUM_BYTES, 6)
             new_data.y_acc = float(y_acc) / imu_acc_sensitivity * (-1.0)
             z_acc = self.decode_int16(input_message, ADXL_NUM_BYTES, 8)
             new_data.z_acc = float(z_acc) / imu_acc_sensitivity * (-1.0)
 
-            new_data.x_gyr = self.decode_int16(input_message, ADXL_NUM_BYTES, 10)
-            new_data.y_gyr = self.decode_int16(input_message, ADXL_NUM_BYTES, 12)
-            new_data.z_gyr = self.decode_int16(input_message, ADXL_NUM_BYTES, 14)
+            x_gyr = self.decode_int16(input_message, ADXL_NUM_BYTES, 10)
+            new_data.x_gyr = float(x_gyr) / imu_gyr_sensitivity * (-1.0)
+            y_gyr = self.decode_int16(input_message, ADXL_NUM_BYTES, 12)
+            new_data.y_gyr = float(y_gyr) / imu_gyr_sensitivity * (-1.0)
+            z_gyr = self.decode_int16(input_message, ADXL_NUM_BYTES, 14)
+            new_data.z_gyr = float(z_gyr) / imu_gyr_sensitivity * (-1.0)
 
-            new_data.x_mag = self.decode_int16(input_message, ADXL_NUM_BYTES, 16)
-            new_data.y_mag = self.decode_int16(input_message, ADXL_NUM_BYTES, 18)
-            new_data.z_mag = self.decode_int16(input_message, ADXL_NUM_BYTES, 20)
+            x_mag = self.decode_int16(input_message, ADXL_NUM_BYTES, 16)
+            new_data.x_mag = float(x_mag) / imu_mag_sensitivity
+            y_mag = self.decode_int16(input_message, ADXL_NUM_BYTES, 18)
+            new_data.y_mag = float(y_mag) / imu_mag_sensitivity
+            z_mag = self.decode_int16(input_message, ADXL_NUM_BYTES, 20)
+            new_data.z_mag = float(z_mag) / imu_mag_sensitivity * (-1.0)
 
-            new_data.temperature = self.decode_int16(input_message, ADXL_NUM_BYTES, 22)
+            temperature = self.decode_int16(input_message, ADXL_NUM_BYTES, 22)
+            new_data.temperature = ((float(temperature) - 1852.0) / -9.05) + 25.0
 
-            new_data.fuel = input_message[ADXL_NUM_BYTES - 3]
+            new_data.fuel = (float(input_message[ADXL_NUM_BYTES - 3])/10.0)
             new_data.rssi = input_message[ADXL_NUM_BYTES - 2]
             new_data.id_byte = input_message[ADXL_NUM_BYTES - 1]
 
-            #############################################
-            new_data.adxl_data.extend(input_message[24: 249])
-            #############################################
+            adxl_data = input_message[24: 249]
+            new_data.mems_x_acc, new_data.mems_y_acc, new_data.mems_z_acc = self.decode_mems_sensor_data(adxl_data)
             # endregion
             return new_data
 
@@ -253,6 +266,21 @@ class Decoder(QObject):
             ########################################
             return new_info
     #endregion
+
+    @staticmethod
+    def decode_mems_sensor_data(input):
+        x_acc = []
+        y_acc = []
+        z_acc = []
+        for i in range(25):
+            tmp = int.from_bytes(input[(i * 9) + 0:(i * 9) + 2], 'little')
+            x_acc.append(float(tmp) / acc_sensitivity)
+            tmp = int.from_bytes(input[(i * 9) + 3:(i * 9) + 5], 'little')
+            y_acc.append(float(tmp) / acc_sensitivity)
+            tmp = int.from_bytes(input[(i * 9) + 6:(i * 9) + 8], 'little')
+            z_acc.append(float(tmp) / acc_sensitivity)
+
+        return x_acc, y_acc, z_acc
 
     #region Decode unsigned Integer
     @staticmethod
@@ -283,33 +311,32 @@ class Connection(QObject):
     debug_message = Signal(str)
     #endregion
 
-    def __init__(self, window_graph_ref):
+    def __init__(self, window_ref):
         super(Connection, self).__init__()
         self.connected = False
         self.finish_reading = False
         self.buffer = Queue()
         self.decoder = Decoder()
-        self.graph = window_graph_ref
+        self.graph = window_ref
 
     #region Setup Port
     def create_port(self):
-        self.ser = QSerialPort()
+        self.ser = Serial('COM3')
         self.debug_message.emit("Port created")
         self.setup_port_settings()
 
     def setup_port_settings(self):
-        self.ser.setPortName("COM3")
-        self.ser.setBaudRate(QSerialPort.BaudRate.Baud115200)
-        self.ser.setDataBits(QSerialPort.DataBits.Data8)
-        self.ser.setParity(QSerialPort.Parity.NoParity)
-        self.ser.setStopBits(QSerialPort.StopBits.OneStop)
-        self.ser.setFlowControl(QSerialPort.FlowControl.NoFlowControl)
+        self.ser.port = 'COM3'
+        self.ser.baudrate = 115200
+        self.ser.bytesize = EIGHTBITS
+        self.ser.parity = PARITY_NONE
+        self.ser.stopbits = STOPBITS_ONE
+
 
         self.open_port()
 
     def open_port(self):
-        if self.ser.open(QIODevice.OpenModeFlag.ReadWrite):
-            self.ser.setDataTerminalReady(True)
+        if self.ser.is_open:
             self.debug_message.emit("Port open")
             if not self.connected:
                 self.open_connection()
@@ -333,9 +360,6 @@ class Connection(QObject):
         self.send_message(standard_base_settings)
         #endregion
 
-        if self.ser.waitForBytesWritten(100):
-            pass
-
         self.connected = True
         self.connection_established.emit()
         self.debug_message.emit("Connection Established")
@@ -344,9 +368,6 @@ class Connection(QObject):
     def close_connection(self):
         self.debug_message.emit("Closing Connection")
         self.send_message(reset_USB_MCU)
-
-        if self.ser.waitForBytesWritten(100):
-            pass
 
         if self.ser.isOpen():
             self.ser.close()
@@ -361,27 +382,26 @@ class Connection(QObject):
             self.ser.write(data_encode)
 
     def reading_data_into_buffer(self):
+        message = []
         while not self.finish_reading:
-            message = []
-            if self.ser.waitForReadyRead(100):
-                all_bytes = self.ser.readAll()
-                for byte in all_bytes:
-                    if byte == bytes(1):
-                        self.buffer.put(message, block=True, timeout=0.1)
-                        message = []
-                    else:
-                        message.append(byte)
-                self.read_message()
+            all_bytes = self.ser.read(100)
+            for byte in all_bytes:
+                if byte == 0:
+                    self.buffer.put(message, block=True, timeout=0.1)
+                    self.read_message()
+                    message = []
+                else:
+                    message.append(byte)
         self.close_connection()
 
     def read_message(self):
-        buffer_len = self.buffer.qsize()
-        for i in range(buffer_len):
+        for i in range(self.buffer.qsize()):
             message = self.buffer.get(block=True, timeout=0.01)
             if len(message) == ADXL_NUM_BYTES + 1:
                 tmp = self.decoder.decode_message((ADXL_NUM_BYTES + 2), message)
                 if not tmp is None:
-                    self.graph.add_element_to_adxl_data(tmp)
+                    for graph in self.window.graphs:
+                        graph.add_element_to_adxl_data(tmp)
             elif len(message) == BASE_NUM_BYTES + 1:
                 self.decoder.decode_message((BASE_NUM_BYTES + 2), message)
             elif len(message) == BASE_NUM_BYTES_NEW + 1:

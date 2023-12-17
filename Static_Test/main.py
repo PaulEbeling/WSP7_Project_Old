@@ -9,7 +9,7 @@ from time import sleep
 class Controller:
     def __init__(self):
         self.window = MainWindow(self.start_connection, self.stop_connection)
-        self.connection = Connection(self.window.graph)
+        self.connection = Connection(self.window)
 
         self.connection_thread = QThread()
         self.connection.moveToThread(self.connection_thread)

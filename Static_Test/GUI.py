@@ -6,14 +6,21 @@ from queue import Queue
 from Static_Test.Input import adxl_uart_data_message
 from time import sleep
 
+OVERRUN_DETECTION_TOLERANCE = 10000000
+ACC_PLOTTEN = 0
+GYR_PLOTTEN = 1
+MAG_PLOTTEN = 2
+MEMS_ACC_PLOTTEN = 3
+
 
 class Graph(QWidget):
     def __init__(self):
         super(Graph, self).__init__()
         self.current_time = 0
         self.is_plotting = False
-        self.adxl_data_queue = Queue()
         self.adxl_data_list = [adxl_uart_data_message]
+        self.timestamps = []
+        self.overrun_counter = 0
 
         #region setup graph widget
         self.graph_widget = pg.PlotWidget()
@@ -28,9 +35,9 @@ class Graph(QWidget):
         #endregion
 
         self.list_of_y_values = [
-            [0] * 500,
-            [0] * 500,
-            [0] * 500
+            [],
+            [],
+            []
         ]
 
         self.plot_liste = [
@@ -43,12 +50,23 @@ class Graph(QWidget):
         layout = QHBoxLayout()
         layout.addWidget(self.graph_widget)
         self.setLayout(layout)
+
+        self.update_plot_timer = QTimer()
         #endregion
 
     def create_plot(self, color, name: str):
         pen = pg.mkPen(color=color)
 
         return self.graph_widget.plot(list(np.linspace(0, (0 + 5), num=500)), ([0] * 500), name=name, pen=pen)
+
+    def reset_values(self):
+        self.timestamps = []
+        self.list_of_y_values = [
+            [],
+            [],
+            []
+        ]
+        self.graph_widget.clear()
 
     @staticmethod
     def update_plot(plot, x_values, y_values):
@@ -57,7 +75,7 @@ class Graph(QWidget):
     def plot(self):
         self.add_value_to_y_values()
         for i in range(3):
-            self.update_plot(self.plot_liste[i], list(np.linspace(5,  10, num=500)), self.list_of_y_values[i])
+            self.update_plot(self.plot_liste[i], self.timestamps, self.list_of_y_values[i])
 
     def add_element_to_adxl_data(self, message: adxl_uart_data_message):
         self.adxl_data_list.append(message)
@@ -65,18 +83,45 @@ class Graph(QWidget):
     def add_value_to_y_values(self):
         adxl_data_list_tmp = self.adxl_data_list.copy()
         adxl_data_list_tmp_len = len(adxl_data_list_tmp)
+        start = 0
 
         if adxl_data_list_tmp_len > 1:
-            if adxl_data_list_tmp_len > 500:
-                adxl_data_list_tmp_len = 500
-
             del self.adxl_data_list[0:len(adxl_data_list_tmp)]
-            for i in range(3):
-                del self.list_of_y_values[i][0:adxl_data_list_tmp_len]
 
-            [self.list_of_y_values[0].append(element.x_acc) for element in adxl_data_list_tmp[0: adxl_data_list_tmp_len]]
-            [self.list_of_y_values[1].append(element.y_acc) for element in adxl_data_list_tmp[0: adxl_data_list_tmp_len]]
-            [self.list_of_y_values[2].append(element.z_acc) for element in adxl_data_list_tmp[0: adxl_data_list_tmp_len]]
+            for i in range(len(adxl_data_list_tmp[0: adxl_data_list_tmp_len])):
+                try:
+                    last_timestamp = self.timestamps[-1]
+                    current_timestamp = adxl_data_list_tmp[i].timestamp / 1000000
+
+                    if current_timestamp < OVERRUN_DETECTION_TOLERANCE and last_timestamp > (
+                            4294967296 - OVERRUN_DETECTION_TOLERANCE):
+                        print("Timer overrun")
+                        self.overrun_counter += 1
+                    elif current_timestamp < last_timestamp:
+                        print("new Timestamp smaller than last")
+                        self.reset_values()
+                        start = i
+
+                    real_timestamp = (adxl_data_list_tmp[i].timestamp / 1000000) + (
+                            4294967296 * self.overrun_counter)
+                    interpolierte_timestamps = (np.linspace(last_timestamp, real_timestamp, 25))
+                    self.timestamps.extend(interpolierte_timestamps)
+                except IndexError:
+                    current_timestamp = adxl_data_list_tmp[i].timestamp / 1000000
+                    real_timestamp = current_timestamp + (4294967296 * self.overrun_counter)
+                    interpolierte_timestamps = (np.linspace(0, real_timestamp, 25))
+                    self.timestamps.extend(interpolierte_timestamps)
+
+            for data in adxl_data_list_tmp[start:adxl_data_list_tmp_len]:
+                self.list_of_y_values[0].extend(data.mems_x_acc[0:25])
+                self.list_of_y_values[1].extend(data.mems_y_acc[0:25])
+                self.list_of_y_values[2].extend(data.mems_z_acc[0:25])
+
+            print(self.list_of_y_values[0])
+            #print(len(self.timestamps))
+            # print(self.timestamps)
+
+            self.plot()
 
 
 class MainWindow(QWidget):
