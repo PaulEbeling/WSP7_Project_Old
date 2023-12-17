@@ -1,7 +1,6 @@
 import numpy as np
 from cobs import cobs
-from PySide6.QtSerialPort import QSerialPort
-from PySide6.QtCore import QIODevice, QObject, Signal
+from PySide6.QtCore import QObject, Signal
 from queue import Queue
 from time import sleep
 from serial import Serial, STOPBITS_ONE, PARITY_NONE, EIGHTBITS
@@ -317,7 +316,7 @@ class Connection(QObject):
         self.finish_reading = False
         self.buffer = Queue()
         self.decoder = Decoder()
-        self.graph = window_ref
+        self.window = window_ref
 
     #region Setup Port
     def create_port(self):
@@ -331,7 +330,6 @@ class Connection(QObject):
         self.ser.bytesize = EIGHTBITS
         self.ser.parity = PARITY_NONE
         self.ser.stopbits = STOPBITS_ONE
-
 
         self.open_port()
 
@@ -413,77 +411,3 @@ class Connection(QObject):
             else:
                 print("USB Byte Size unknown " + str(len(message) + 1))
             return
-
-        """""
-        message = []
-        byte_counter = 0
-        #################################################
-        for i in range(self.buffer.qsize()):
-            byte = self.buffer.get(block=True, timeout=0.01)
-            if byte_counter < NUM_BUF:
-                byte_counter += 1
-
-                if byte == 0:
-                    if byte_counter == ADXL_NUM_BYTES + 2:
-                        tmp = self.decoder.decode_message((ADXL_NUM_BYTES + 2), message)
-                        if not tmp is None:
-                            self.graph.add_element_to_adxl_data(tmp)
-                    elif byte_counter == BASE_NUM_BYTES + 2:
-                        self.decoder.decode_message((BASE_NUM_BYTES + 2), message)
-                    elif byte_counter == BASE_NUM_BYTES_NEW + 2:
-                        self.decoder.decode_message((BASE_NUM_BYTES_NEW + 2), message)
-                    elif byte_counter == GPS_NUM_BYTES + 2:
-                        self.decoder.decode_message((GPS_NUM_BYTES + 2), message)
-                    elif byte_counter == TIMING_NUM_BYTES + 2:
-                        self.decoder.decode_message((TIMING_NUM_BYTES + 2), message)
-                    else:
-                        print("USB Byte Size unknown " + str(byte_counter))
-                    return
-                else:
-                    message.append(byte)
-        ####################################################
-        """
-
-"""""
-class DataReader(QObject):
-    def __init__(self, connect_buffer_ref, window_graph_ref):
-        super(DataReader, self).__init__()
-        self.decoder = Decoder()
-        self.buffer = connect_buffer_ref
-        self.message_in_buffer = False
-        self.finish_reading = False
-        self.graph = window_graph_ref
-
-    def read_from_buffer(self):
-        while not self.finish_reading:
-            if self.message_in_buffer:
-                self.read_message()
-                self.message_in_buffer = False
-
-    def read_message(self):
-        message = []
-        byte_counter = 0
-        for i in range(self.buffer.qsize()):
-            byte = self.buffer.get(block=True, timeout=0.01)
-            if byte_counter < NUM_BUF:
-                byte_counter += 1
-
-                if byte == 0:
-                    if byte_counter == ADXL_NUM_BYTES + 2:
-                        tmp = self.decoder.decode_message((ADXL_NUM_BYTES + 2), message)
-                        if not tmp is None:
-                            self.graph.add_element_to_adxl_data(tmp)
-                    elif byte_counter == BASE_NUM_BYTES + 2:
-                        self.decoder.decode_message((BASE_NUM_BYTES + 2), message)
-                    elif byte_counter == BASE_NUM_BYTES_NEW + 2:
-                        self.decoder.decode_message((BASE_NUM_BYTES_NEW + 2), message)
-                    elif byte_counter == GPS_NUM_BYTES + 2:
-                        self.decoder.decode_message((GPS_NUM_BYTES + 2), message)
-                    elif byte_counter == TIMING_NUM_BYTES + 2:
-                        self.decoder.decode_message((TIMING_NUM_BYTES + 2), message)
-                    else:
-                        print("USB Byte Size unknown " + str(byte_counter))
-                    return
-                else:
-                    message.append(byte)
-"""""

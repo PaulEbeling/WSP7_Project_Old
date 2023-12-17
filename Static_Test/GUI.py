@@ -1,10 +1,7 @@
 import numpy as np
-from PySide6.QtCore import QThread, QTimer, Signal
 from PySide6.QtWidgets import QPushButton, QVBoxLayout, QHBoxLayout, QPlainTextEdit, QWidget
 import pyqtgraph as pg
-from queue import Queue
 from Static_Test.Input import adxl_uart_data_message
-from time import sleep
 
 OVERRUN_DETECTION_TOLERANCE = 10000000
 ACC_PLOTTEN = 0
@@ -50,8 +47,6 @@ class Graph(QWidget):
         layout = QHBoxLayout()
         layout.addWidget(self.graph_widget)
         self.setLayout(layout)
-
-        self.update_plot_timer = QTimer()
         #endregion
 
     def create_plot(self, color, name: str):
@@ -144,8 +139,6 @@ class MainWindow(QWidget):
 
         #region setup graph
         self.graph = Graph()
-        self.graph_thread = QThread()
-        self.graph.moveToThread(self.graph_thread)
         #endregion
 
         #region setup layout
