@@ -25,7 +25,7 @@ class Graph(QWidget):
         self.graph_widget.addLegend()
         self.graph_widget.showGrid(x=True, y=True)
         self.graph_widget.setMouseEnabled(x=False, y=False)
-        self.graph_widget.setYRange(-1, 1)
+        self.graph_widget.setYRange(-10, 10)
         self.graph_widget.setLabel('left', "<span style=\"color:black;font-size:20px\">Voltage [mV/V]</span>")
         self.graph_widget.setLabel('bottom', "<span style=\"color:black;font-size:20px\">Time [s]</span>")
         self.test_counter = 0
@@ -111,10 +111,6 @@ class Graph(QWidget):
                 self.list_of_y_values[0].extend(data.mems_x_acc[0:25])
                 self.list_of_y_values[1].extend(data.mems_y_acc[0:25])
                 self.list_of_y_values[2].extend(data.mems_z_acc[0:25])
-
-            print(self.list_of_y_values[0])
-            #print(len(self.timestamps))
-            # print(self.timestamps)
 
             self.plot()
 

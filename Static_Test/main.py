@@ -30,7 +30,7 @@ class Controller:
 
     def start_reading_data(self):
         sleep(8)
-        self.window.graph.plot()
+        self.window.graph.add_value_to_y_values()
 
     def stop_connection(self):
         self.connection.finish_reading = True
