@@ -245,8 +245,6 @@ class Graph(QWidget):
                 self.list_of_y_values[0].extend(data.mems_x_acc[0:25])
                 self.list_of_y_values[1].extend(data.mems_y_acc[0:25])
                 self.list_of_y_values[2].extend(data.mems_z_acc[0:25])
-
-            print(self.list_of_y_values[0])
             #print(len(self.timestamps))
             # print(self.timestamps)
 
@@ -273,8 +271,7 @@ class MainWindow(QWidget):
 
         #region setup graph
         self.graphs = [
-            Graph(0),
-            Graph(MEMS_ACC_PLOTTEN)
+            Graph(3),
         ]
 
         self.threads = [
@@ -282,7 +279,7 @@ class MainWindow(QWidget):
             QThread()
         ]
 
-        for i in range(2):
+        for i in range(1):
             self.threads[i] = QThread()
             self.graphs[i].moveToThread(self.threads[i])
             self.threads[i].started.connect(self.graphs[i].start_plotting)
@@ -297,7 +294,7 @@ class MainWindow(QWidget):
         widget_layout = QVBoxLayout()
         widget_layout.addLayout(button_layout)
         widget_layout.addWidget(self.graphs[0])
-        widget_layout.addWidget(self.graphs[1])
+        #widget_layout.addWidget(self.graphs[1])
         widget_layout.addWidget(self.textfield_debugger)
 
         self.setLayout(widget_layout)

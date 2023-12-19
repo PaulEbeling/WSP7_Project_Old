@@ -25,7 +25,7 @@ class Graph(QWidget):
         self.graph_widget.addLegend()
         self.graph_widget.showGrid(x=True, y=True)
         self.graph_widget.setMouseEnabled(x=False, y=False)
-        self.graph_widget.setYRange(-10, 10)
+        self.graph_widget.setYRange(-10 ,10)
         self.graph_widget.setLabel('left', "<span style=\"color:black;font-size:20px\">Voltage [mV/V]</span>")
         self.graph_widget.setLabel('bottom', "<span style=\"color:black;font-size:20px\">Time [s]</span>")
         self.test_counter = 0

@@ -116,7 +116,7 @@ standard_base_settings = [
 imu_acc_sensitivity = 8196.72
 imu_gyr_sensitivity = 114.2857
 imu_mag_sensitivity = 6842.0
-acc_sensitivity = 51200.0
+acc_sensitivity = 128000.0
 #endregion
 
 #region dataclass
@@ -249,10 +249,6 @@ class Decoder(QObject):
 
             adxl_data = input_message[24: 249]
             new_data.mems_x_acc, new_data.mems_y_acc, new_data.mems_z_acc = self.decode_mems_sensor_data(adxl_data)
-
-            #print("MEMS X ACC: " + str(new_data.mems_x_acc) + " X ACC: " + str(new_data.x_acc))
-            #print(new_data.mems_y_acc)
-            #print(new_data.mems_z_acc)
             # endregion
             return new_data
 
@@ -275,11 +271,28 @@ class Decoder(QObject):
         y_acc = []
         z_acc = []
         for i in range(25):
-            tmp = int.from_bytes(input[(i * 9) + 0:(i * 9) + 2], 'little')
+            tmp = np.int32(np.int8(input[(i * 9) + 0]))
+            tmp = tmp << 8
+            tmp = tmp | np.uint8(input[(i * 9) + 1])
+            tmp = tmp << 4
+            tmp = tmp | np.uint8(((input[(i * 9) + 2] & 0xF0) >> 4))
+
             x_acc.append(float(tmp) / acc_sensitivity)
-            tmp = int.from_bytes(input[(i * 9) + 3:(i * 9) + 5], 'little')
+
+            tmp = np.int32(np.int8(input[(i * 9) + 3]))
+            tmp = tmp << 8
+            tmp = tmp | np.uint8(input[(i * 9) + 4])
+            tmp = tmp << 4
+            tmp = tmp | np.uint8(((input[(i * 9) + 5] & 0xF0) >> 4))
+
             y_acc.append(float(tmp) / acc_sensitivity)
-            tmp = int.from_bytes(input[(i * 9) + 6:(i * 9) + 8], 'little')
+
+            tmp = np.int32(np.int8(input[(i * 9) + 6]))
+            tmp = tmp << 8
+            tmp = tmp | np.uint8(input[(i * 9) + 7])
+            tmp = tmp << 4
+            tmp = tmp | np.uint8(((input[(i * 9) + 8] & 0xF0) >> 4))
+
             z_acc.append(float(tmp) / acc_sensitivity)
 
         return x_acc, y_acc, z_acc
